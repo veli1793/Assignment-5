@@ -1,0 +1,7 @@
+---
+title: "Arbeidskrav 5"
+author: "Vemund Lien"
+date: "20 11 2021"
+output: html_document
+---
+
