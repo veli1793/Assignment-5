@@ -1,0 +1,190 @@
+---
+title: "Report exam"
+author: "Vemund Lien"
+date: "26 11 2021"
+output: 
+  word_document:
+    reference_docx: template_new.docx
+editor_options: 
+  chunk_output_type: console
+bibliography: references.bib
+---
+
+## Introduction
+
+It is well known that muscles in humans can grow stronger. Many studies have investigated how this phenomenon is working. Some humans responds more to resistance training than others, leaving that genetically factors play a role to muscle gains and strength @timmons2011 . Training volume and specific training towards a goal seems also to be important in order to achieve performance on a specific sport @progress2009 .
+
+## Methods
+
+Data about the participants are presented in (table 1)
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE}
+library(tidyverse) # for data wrangling
+library(flextable)
+library(exscidata)
+library(ggtext)
+
+data("dxadata")
+
+dxadata %>% # take the dxadata data set
+  select(participant, time, sex, include:weight, fat.whole) %>% 
+  # select participant, time, sex, include to height and fat.whole
+  
+  # Filter to keep all observations with pre
+  filter(time == "pre") %>%
+  
+  # Calculate body fat
+  # fat.whole in grams, needs to be divided by 1000 to express as kg
+  # Multiply by 100 to get percentage
+  mutate(fat.whole = ((fat.whole/1000) / weight) * 100) %>%
+  
+  # Group the data frame and add a variable specifying the number of observations per group
+  group_by(include, sex) %>%
+  mutate(n = n()) %>%
+  # Collect all variables for convenient summarizing
+  pivot_longer(names_to = "variable", 
+               values_to = "value", 
+               cols = age:n) %>%
+  # Create a new grouping, adding variable
+  group_by(include, sex, variable) %>%
+  # Summarize in two new variables m for mean and s for SD
+  summarise(m = mean(value), 
+            s = sd(value)) %>%
+  # Add descriptive statistics together for nice formatting
+  mutate(ms = if_else(variable == "n", # If the variable is n
+                      as.character(m), # the only display the mean, otherwise:
+                        paste0(signif(m, 3), # Use signif to round to significant numbers
+                        " (",
+                        signif(s, 3), 
+                        ")")), 
+         # Doing a new grouping variable
+         include_sex = paste(include, sex, sep = "_")) %>%
+  # removing unnecessary variables after ungrouping
+  ungroup() %>%
+
+  select(-sex, -include, -m, -s) %>%
+  # pivot wider to match the desired data
+  pivot_wider(names_from = include_sex, 
+              values_from = ms) %>%
+    mutate(variable = factor(variable, levels = c("n", "age", "weight", "height", "fat.whole"), 
+                           labels = c("N", "Age (years)", "Mass (kg)", 
+                                      "Stature (cm)", "Body fat (%)"))) %>%
+  select(variable, incl_female, excl_female, incl_male, excl_male) %>%
+  arrange(variable) %>%
+   flextable()  %>%
+   set_header_labels(variable = "",
+                    incl_female = "Include", 
+                     excl_female = "Exclude",
+                     incl_male = "Include", 
+                     excl_male = "Exclude") %>%
+     # Adds a header specified for all columns of the table
+    add_header_row(values = c("", "Female", "Female", "Male", "Male")) %>%
+    
+    # Merge the new cells with the same data
+    # part = "header" meands that we want to add a row in the "header" part of the table.
+    # i = 1 means row 1
+    # j = 2:3 means column 2 to 3
+    merge_at(part = "header", i = 1, j = 2:3) %>%
+    merge_at(part = "header", i = 1, j = 4:5) %>%
+    # Add footnote
+    add_footer_row(values = "Table 1: Values are mean and (SD)", colwidths = 5) %>%
+    # Make the columns widths match the content
+    autofit()
+```
+
+Following tests and measurements were performed during the study:
+
+-   Isokinetic and isometric unilateral knee-extension
+
+-   One repetition-maximum (1RM) unilateral leggpress and knee-extension
+
+-   Muscle cross sectional area (CSA) and body composition
+
+-   Hormonal measurements
+
+-   Muscle tissue sampling
+
+Isokinetic and isometric unilateral knee-extension was performed on a dynamometer, with maximal torque on 60, 120 and 240 grade \* sec^-1^. The participants were familiarized with the test protocol by performing three submaximal tests at each angular speed. Two attempts were given at 60 grade \* sec^-1^, and three attempts on 120 and 240 grade \* sec-1. The highest score obtained was used for analyses.
+
+Towards the 1RM tests, the protocol contained a spesific warm-up of ten, six and three repetitions at 50, 75 and 85% of anticipated maximum before each of the exercise. Then the participants were given six attempts to find 1RM. The last weigth lifted at full range motion was accepted as 1RM.
+
+Muscle cross sectional area was measured on vastus lateralis, medialis, intermedius and rectus femoris, before and after training intervention using magnetic resonance imaging (MRI). Dual-energy X-ray absorptiometry (DXA) was used to measure body composition before and after the training intervention. The participants were told to stay fasted for 2 hours and refrain from any hard physical activity 48 hours before the measurements.
+
+## Results
+
+Gjennomsnittlig forbedring fra pre- til post-test i multiple var 32.2 kg og i single 28.6., som førte til en ikke-signifikant differanse på 3.6 kg (p = 0.26) mellom multiple og single
+
+Figure 1
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, fig.cap="Pre and post legextension"}
+
+data("strengthvolume")
+
+
+
+legextension_c <- strengthvolume %>%
+  filter(exercise == "legext", 
+         time %in% c("pre", "post"))
+  
+legextension_c %>%
+  group_by(sets, time) %>%
+  summarise(m = mean(load, na.rm = TRUE), 
+            s = sd(load, na.rm = TRUE)) %>%
+  mutate(time = factor(time, levels = c("pre", "post"))) %>%
+  
+  ggplot(aes(time, m, color = sets)) + 
+  
+  geom_errorbar(aes(ymin = m - s, ymax = m + s), 
+                position = position_dodge(width = 0.2), 
+                width = 0.2) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  
+  labs(x = "Time-point", 
+       y = "Average load (kg)", 
+       color = "Sets") +
+  
+  theme_bw() + 
+  
+  theme(legend.position = c(0.1, 0.9))
+
+
+```
+
+```{r, message=FALSE, warning=FALSE, echo=FALSE, eval=FALSE}
+
+legextension_c %>%
+  pivot_wider(names_from = time,
+              values_from = load) %>%
+  mutate(change = post - pre) %>%
+  group_by(sets) %>%
+  summarise(mean_change = mean(change, na.rm = TRUE)) %>%
+  pivot_wider(names_from = sets,
+              values_from = mean_change) %>%
+  mutate(diff = multiple - single) %>%
+  print()
+
+dat <- legextension_c %>%
+  pivot_wider(names_from = time,
+              values_from = load) %>%
+  mutate(change = post - pre) %>%
+  print()
+
+#t-test
+m1 <- lm(change ~ sets, data = dat)
+
+#ANCOVA model
+#m2: Explaining post based on pre and sets-group when pre is at baseline.
+#m3: Explaining change between both post-values when the pre-values is at baseline.
+m2 <- lm(post ~ pre + sets, data = dat)
+m3 <- lm(change ~ pre + sets, data = dat)
+
+
+summary(m1)
+summary(m2)
+summary(m3)
+
+```
+
+
+
+## Discussion

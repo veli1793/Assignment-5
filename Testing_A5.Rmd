@@ -21,14 +21,50 @@ dxadata %>%
   mutate(leg = if_else(leg == "lean.left_leg", "L", "R"), 
          sets = if_else(multiple == leg, "multiple", "single")) %>%
   select(participant, time, sex, include, sets, leg, lean.mass) %>%
-  print()
+```
 
-  strengthvolume %>%
+
+```{r}
+print()
+
+```
+
+
+```{r}
+
+strengthvolume %>%
   group_by(exercise) %>%
   mutate(scaled.load = load / max(load, na.rm = TRUE)) %>%
   group_by(participant, time, sex, sets) %>%
   summarise(combined.load = mean(scaled.load, na.rm = TRUE)) %>%
   ungroup() %>%
   print()
+
+
+```
+
+```{r}
+data("strengthvolume")
+
+strengthvolume %>%
+  filter(exercise == "legext", time %in% c("pre", "post")) %>%
+  group_by(sets, time) %>%
+  summarise(m = mean(load, na.rm = TRUE), 
+            s = sd(load, na.rm = TRUE)) %>%
+  mutate(time = factor(time, levels = c("pre", "post"))) %>%
+  ggplot(aes(time, m, color = sets)) + 
+  
+  geom_errorbar(aes(ymin = m - s, ymax = m + s), 
+                position = position_dodge(width = 0.2), 
+                width = 0.2) +
+  geom_point(position = position_dodge(width = 0.2)) +
+  
+  labs(x = "Time-point", 
+       y = "Average load (kg)", 
+       color = "Sets") +
+  
+  theme_bw() + 
+  
+  theme(legend.position = c(0.1, 0.9))
 ```
 
